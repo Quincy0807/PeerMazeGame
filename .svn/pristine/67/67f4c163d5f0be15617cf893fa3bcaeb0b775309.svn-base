@@ -1,0 +1,199 @@
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.stream.Collectors;
+
+public class ServerRole extends Super implements ServerInterface, LogInterface {
+
+    public ServerRole(int mazeSize, int treasureNumber) {
+        super(mazeSize, treasureNumber);
+        getGameInfo().setServer(this);
+    }
+
+    public ServerRole(ExchangeData exchangeData) {
+        setExchangeData(exchangeData);
+    }
+
+    /**
+     * invoked when the program is ran as a primary server
+     **/
+    @Override
+    public PlayerInfo recordSelfAsFirstPlayer(PlayerRole playerRole) {
+        getGameInfo().reset();
+        playerRole.setPlayerID(getGameInfo().getGlobalId());
+        PlayerInfo playerInfo = new PlayerInfo(playerRole.getPlayerID(),
+                getGameInfo().getMazeSize(), getGameInfo().getTreasureInfo(),
+                playerRole, getGameInfo().getPlayerInfos().values());
+        getGameInfo().getPlayerInfos().put(playerRole.getPlayerID(), playerInfo);
+        return playerInfo;
+    }
+
+    @Override
+    public ExchangeData joinGame(ClientInterface player) throws RemoteException {
+        int currentId = getGameInfo().getGlobalId();
+        PlayerInfo playerInfo = null;
+        GameInfo gameInfo = getGameInfo();
+        ExchangeData exchangeData = null;
+        switch (gameInfo.getGameState()) {
+            case GameInfo.gameOver:
+                gameInfo.setGameState(GameInfo.gameWaiting);
+                /** make primary server player show the game**/
+                ClientInterface primaryServerPlayer = new ArrayList<>(gameInfo.getPlayerInfos().values()).get(0).getPlayer();
+                playerInfo = new PlayerInfo(currentId, gameInfo.getMazeSize(), gameInfo.getTreasureInfo(), player, gameInfo.getPlayerInfos().values());
+                player.setPlayerID(currentId);
+                player.setPlayerRole(backupServer);
+                gameInfo.getBackupServerQueue().push(player);
+                gameInfo.getPlayerInfos().put(currentId, playerInfo);
+                startTimer();
+                exchangeData = new ExchangeData(gameInfo, playerInfo);
+                primaryServerPlayer.setGameInfo(gameInfo);
+                primaryServerPlayer.showStage();
+                //TODO : player.becomeBackUpServer(exchangeData);
+                //      Timer timer=new Timer();
+                //              timer.scheduleAtFixedRate(()->{
+                //                  if(!this.ping(player)){
+                //                      do{
+                //                          try{
+                //                              PlayerInfo nextBackUp = GetNextBackup();
+                //                              nextBackup.becomeBackUpServer(exchangeData);
+                //                              break;
+                //                          }
+                //                          catch(RemoteException ex){
+                //                              continue;
+                //                          }
+                //                      }
+                //                      while(backupPlayerQueue <> 0)
+                //                  }
+                //              },1000*10,1000*30);
+                break;
+            case GameInfo.gameWaiting:
+                player.setPlayerID(currentId);
+                player.setPlayerRole(normalPlayer);
+                playerInfo = new PlayerInfo(currentId, gameInfo.getMazeSize(), gameInfo.getTreasureInfo(), player, gameInfo.getPlayerInfos().values());
+                gameInfo.getBackupServerQueue().push(player);
+                gameInfo.getPlayerInfos().put(currentId, playerInfo);
+                exchangeData = new ExchangeData(gameInfo, playerInfo);
+                for (PlayerInfo rivalPlayerInfo : gameInfo.getPlayerInfos().values()) {
+                    if (rivalPlayerInfo.getPlayerId() != currentId) {
+                        rivalPlayerInfo.getPlayer().rivalNotification(exchangeData);
+                    }
+                }
+                break;
+            case GameInfo.gameStart:
+                break;
+        }
+        return exchangeData;
+    }
+
+    @Override
+    public synchronized ExchangeData move(int id, String direction) throws RemoteException {
+        GameInfo gameInfo = getGameInfo();
+        PlayerInfo playerInfo = gameInfo.getPlayerInfos().get(id);
+        playerInfo.setRivals(gameInfo.getPlayerInfos().values().parallelStream().filter(rival -> rival.getPlayerId() != id).collect(Collectors.toList()));
+        if (!direction.equals("NoMove")) {
+            playerInfo.move(direction, gameInfo);
+        }
+        if (gameInfo.getTreasureInfo().size() == 0) {
+            gameInfo.getPlayerInfos().values().parallelStream().filter(player -> !player.isQuit() && player.getPlayerId() != id).forEach(player -> {
+                try {
+                    player.getPlayer().terminateMazeGame();
+                } catch (RemoteException e) {
+                    log("player-" + player.getPlayerId() + "disconnected!");
+                }
+            });
+        }
+
+        ExchangeData exchangeData = new ExchangeData(gameInfo, playerInfo);
+        //TODO : 1. Code to inform Backup
+        try {
+            ClientInterface currentBackup = gameInfo.getCurrentBackupServer();
+            log("current game info: "+gameInfo);
+            log("synchronizing with backup server...");
+            currentBackup.synchronizeGameState(exchangeData);
+            log("synchronized successfully!!");
+        } catch (RemoteException e) {
+            log("failed to synchronize...\n"+
+            "current backup server must crash. Pick up a new backup server");
+            do {
+                ClientInterface nextBackup=null;
+                try {
+                    nextBackup = gameInfo.tryToGetNextBackupServer();
+                    nextBackup.becomeBackUpServer(exchangeData);
+                    log(nextBackup.getPlayerIDAsString() + " will become the backup server");
+                    break;
+                } catch (RemoteException ee) {
+                    log("player-"+gameInfo.returnIdByRemoteObject(nextBackup)+" crashed too");
+                }
+            }
+            while (gameInfo.getMazeSize() != 0);
+            log("*\n*\n*\n*\n*\n*\n*\n*" +
+                    "this line(ServerRole-move()) should not be reached.\n " +
+                    "BackupServer queue is empty!!" +
+                    "*\n*\n*\n*\n*\n*\n*\n*");
+        }
+        return exchangeData;
+    }
+
+    @Override
+    public boolean quitGame(int id) throws RemoteException {
+        GameInfo gameInfo = getGameInfo();
+        if (gameInfo.getPlayerInfos().values().parallelStream().filter(info -> !info.isQuit()).count() <= 2) {
+            log("there is only 2 players, player-" + id + " couldn't quit");
+            return false;
+        } else {
+            /** after player quit, synchronize data with server **/
+            gameInfo.getPlayerInfos().get(id).setIsQuit(true);
+            gameInfo.getBackupServerQueue().remove(gameInfo.getPlayerInfos().get(id).getPlayer());
+            log("player-" + id + " has quit the game");
+            log(">>>update game info");
+            log(gameInfo + "");
+            ExchangeData exchangeData = new ExchangeData(gameInfo, getPlayerInfo());
+            try {
+                ClientInterface currentBackup = gameInfo.getCurrentBackupServer();
+                log("current game info: " + gameInfo);
+                log("synchronizing with backup server...");
+                currentBackup.synchronizeGameState(exchangeData);
+                log("synchronized successfully!!");
+            } catch (RemoteException e) {
+                log("failed to synchronize...\n" +
+                        "current backup server must crash. Pick up a new backup server");
+                do {
+                    ClientInterface nextBackup = null;
+                    try {
+                        nextBackup = gameInfo.tryToGetNextBackupServer();
+                        nextBackup.becomeBackUpServer(exchangeData);
+                        log(nextBackup.getPlayerIDAsString() + " will become the backup server");
+                        break;
+                    } catch (RemoteException ee) {
+                        log("player-" + gameInfo.returnIdByRemoteObject(nextBackup) + " crashed too");
+                    }
+                }
+                while (gameInfo.getMazeSize() != 0);
+                log("*\n*\n*\n*\n*\n*\n*\n*" +
+                        "this line(ServerRole-move()) should not be reached.\n " +
+                        "BackupServer queue is empty!!" +
+                        "*\n*\n*\n*\n*\n*\n*\n*");
+            }
+            return true;
+        }
+    }
+
+    private void startTimer() {
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    getGameInfo().setGameState(GameInfo.gameStart);
+                    for (PlayerInfo player : getGameInfo().getPlayerInfos().values()) {
+                        player.getPlayer().startMazeGame(new ExchangeData(getGameInfo(),getPlayerInfo()));
+                    }
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, 1000 * 20);
+
+    }
+}

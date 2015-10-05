@@ -1,0 +1,56 @@
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.Map;
+
+/**
+ * Created by Quincy on 15/9/3.
+ */
+public class GameInfo {
+    private String gameState;
+    private int globalId;
+    private int mazeSize;
+    private int treasureNumber;
+    private LinkedList<ClientInterface> backupServerQueue;
+    private Map<Integer, PlayerState> playerInfo;
+    private Map<Position, Integer> treasureInfo;
+    public GameInfo(int mazeSize,int treasureNumber) {
+        this.gameState = "OVER";
+        this.globalId = 1;
+        this.mazeSize=mazeSize;
+        this.treasureNumber = treasureNumber;
+        this.backupServerQueue = new LinkedList<>();
+        this.playerInfo = new HashMap<>();
+        this.treasureInfo = new HashMap<>();
+    }
+
+    public String getGameState() {
+        return gameState;
+    }
+
+    public synchronized int getGlobalId() {
+        int currentId = globalId;
+        globalId++;
+        return currentId;
+    }
+
+    public int getMazeSize() {
+        return mazeSize;
+    }
+
+    public int getTreasureNumber() {
+        return treasureNumber;
+    }
+
+    public LinkedList<ClientInterface> getBackupServerQueue() {
+        return backupServerQueue;
+    }
+
+    public Map<Integer, PlayerState> getPlayerInfo() {
+        return playerInfo;
+    }
+
+    public Map<Position, Integer> getTreasureInfo() {
+        return treasureInfo;
+    }
+
+}

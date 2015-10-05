@@ -1,0 +1,5 @@
+/**
+ * Created by Quincy on 15/9/3.
+ */
+public class ServerRole extends Super{
+}

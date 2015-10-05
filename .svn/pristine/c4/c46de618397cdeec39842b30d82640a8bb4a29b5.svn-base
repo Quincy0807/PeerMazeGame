@@ -1,0 +1,57 @@
+package com.ds.player;
+
+import com.ds.controller.StartGameController;
+import com.ds.server.PlayerState;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+
+import java.io.IOException;
+import java.rmi.NotBoundException;
+import java.rmi.RemoteException;
+
+/**
+ * Created by Quincy on 15/8/19.
+ */
+public class MazeGame implements ClientInterface {
+    private transient Stage stage;
+    private transient Scene scene;
+    private transient StartGameController startGameController;
+    private transient PlayerState playerState;
+
+    public MazeGame(Stage stage,int port) throws IOException, NotBoundException {
+
+        this.stage = stage;
+        this.playerState = new PlayerState();
+        FXMLLoader fxmlLoader = new FXMLLoader(getClass().getResource("../layout/start_game_layout.fxml"));
+        Parent root = fxmlLoader.load();
+        startGameController = fxmlLoader.getController();
+        startGameController.setPlayerState(playerState);
+        startGameController.setPlayer(this);
+        stage.setTitle("Join A Game");
+        scene = new Scene(root, 300, 275);
+        stage.setScene(scene);
+        stage.setOnCloseRequest(windowEvent -> System.exit(0));
+        stage.show();
+        startGameController.setPort(port);
+    }
+
+    @Override
+    public void startMazeGame() throws RemoteException {
+        startGameController.startMazeGame();
+    }
+
+    @Override
+    public void terminateMazeGame() throws RemoteException {
+        startGameController.terminateGame();
+    }
+
+    @Override
+    public void rivalNotification(PlayerState rivalState) throws RemoteException {
+        startGameController.drawRival(rivalState);
+
+    }
+
+
+}

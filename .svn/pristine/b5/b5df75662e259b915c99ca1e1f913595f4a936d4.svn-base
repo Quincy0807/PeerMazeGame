@@ -1,0 +1,272 @@
+import javafx.animation.FadeTransition;
+import javafx.animation.Timeline;
+import javafx.application.Platform;
+import javafx.collections.FXCollections;
+import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
+import javafx.fxml.FXML;
+import javafx.fxml.Initializable;
+import javafx.geometry.Pos;
+import javafx.scene.Node;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.image.ImageView;
+import javafx.scene.input.KeyEvent;
+import javafx.scene.layout.GridPane;
+import javafx.scene.layout.StackPane;
+import javafx.scene.paint.Color;
+import javafx.stage.Stage;
+import javafx.util.Duration;
+
+import java.io.File;
+import java.net.URL;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Created by Quincy on 15/8/19.
+ */
+public class GameController implements Initializable {
+    @FXML
+    private GridPane gridPane;
+    @FXML
+    private StackPane stackPane;
+    @FXML
+    private TableColumn<RivalInfo, String> playerColumn;
+    @FXML
+    private TableColumn<RivalInfo, Integer> numColumn;
+    @FXML
+    private TableView<RivalInfo> infoTable;
+    private GridPane mazeGrid;
+    private PlayerState playerState;
+    private ServerInterface remoteServer;
+    private Scene startGameScene;
+    private EventHandler<KeyEvent> eventHandler;
+    private HashMap<Position, Node> treasureImages;
+    private Map<UUID, RivalInfo> rivalInfo;
+
+
+    public void setRemoteServer(ServerInterface remoteServer) {
+        this.remoteServer = remoteServer;
+    }
+
+    public void setStartGameScene(Scene startGameScene) {
+        this.startGameScene = startGameScene;
+    }
+
+    public void setPlayerState(PlayerState playerState) {
+        this.playerState = playerState;
+        initializeMazeUI();
+    }
+
+
+    private void initializeMazeUI() {
+//        for (int i = 0; i < playerState.getMazeSize(); i++) {
+//            mazeGrid.getColumnConstraints().add(new ColumnConstraints(50));
+//            mazeGrid.getRowConstraints().add(new RowConstraints(50));
+//        }
+        mazeGrid.setGridLinesVisible(true);
+        mazeGrid.setMaxWidth(500);
+        drawPlayer(playerState, "SELF");
+//        playerState.getRivals().forEach(rival -> drawPlayer(rival, "RIVAL"));
+//        drawTreasure(playerState.getTreasureInfo());
+        gridPane.add(mazeGrid, 1, 0);
+    }
+
+    public void drawPlayer(PlayerState playerState, String type) {
+        UUID uuid = playerState.getUid();
+//        Position position = playerState.getCurrentPosition();
+        final Node node;
+        switch (type) {
+            case "RIVAL":
+//                if (position.equals(this.playerState.getCurrentPosition())) {
+//                    return;   //if a rival has the same position as the player, just plot the player
+//                }
+                node = new ImageView(new File("img/rival.png").toURI().toString());
+                break;
+            default:
+
+                node = new ImageView(new File("img/self.png").toURI().toString());
+                break;
+        }
+        Platform.runLater(() -> {
+            StackPane stackPane = new StackPane();
+            stackPane.setPrefWidth(50);
+            stackPane.setPrefWidth(50);
+            stackPane.getChildren().add(0, node);
+            stackPane.getChildren().add(1, getPlayerLabel(uuid, type));
+            if (getRival(uuid).containsImage()) {
+                mazeGrid.getChildren().remove(getRival(uuid).getImage());
+            }
+            getRival(uuid).setImage(stackPane);
+//            mazeGrid.add(stackPane, position.getX(), position.getY());
+//            getRival(uuid).setTreasureCollected(playerState.getTreasureCollected());
+//            infoTable.setItems(FXCollections.observableArrayList(rivalInfo.values()).sorted((o1, o2) -> o2.getTreasureCollected() - o1.getTreasureCollected()));
+//            drawTreasure(playerState.getTreasureInfo());
+        });
+    }
+
+    public void drawTreasure(Map<Position, Integer> treasures) {
+        if (treasureImages.size() == treasures.size()) {
+            return;
+        }
+        if (treasureImages.size() == 0) {
+            treasures.forEach((Position position, Integer integer) -> {
+                StackPane stackPane = new StackPane();
+                Node node = new ImageView(new File("img/treasure.jpeg").toURI().toString());
+                stackPane.getChildren().add(0, node);
+                stackPane.getChildren().add(1, createLabelWithFading(integer + ""));
+                treasureImages.put(position, stackPane);
+                mazeGrid.add(stackPane, position.getX(), position.getY());
+            });
+        } else {
+            List<Position> treasureCollected = treasureImages.keySet().stream().filter(position -> !treasures.keySet().contains(position)).collect(Collectors.toList());
+            treasureCollected.forEach(position -> {
+                mazeGrid.getChildren().remove(treasureImages.get(position));
+                treasureImages.remove(position);
+            });
+        }
+//        if (playerState.getTreasureInfo().size() == 0) {
+//            gridPane.removeEventHandler(KeyEvent.KEY_PRESSED, eventHandler);
+//            terminateGame();
+//        }
+    }
+
+    public void startMazeGame() {
+        Platform.runLater(() -> {
+            stackPane.getChildren().remove(0);
+            gridPane.setOpacity(1);
+            setEventHandler();
+        });
+    }
+
+    private Label getPlayerLabel(UUID uuid, String type) {
+        if (getRival(uuid).containsLabel()) {
+            return getRival(uuid).getLabel();
+        } else {
+            String text;
+            if (type.equals("RIVAL")) {
+                text = uuid.toString().substring(0, 5);
+            } else {
+                text = "YOU";
+            }
+            Label label = createLabelWithFading(text);
+            getRival(uuid).setLabelWithName(label, text);
+            return label;
+        }
+    }
+
+    private Label createLabelWithFading(String text) {
+        Label newLabel = new Label(text);
+        newLabel.setTextFill(Color.BLUEVIOLET);
+        FadeTransition fadeTransition = new FadeTransition(Duration.millis(500), newLabel);
+        fadeTransition.setCycleCount(Timeline.INDEFINITE);
+        fadeTransition.setFromValue(1);
+        fadeTransition.setToValue(0.2);
+        fadeTransition.setAutoReverse(true);
+        fadeTransition.play();
+        return newLabel;
+    }
+
+    private RivalInfo getRival(UUID uuid) {
+        if (rivalInfo.containsKey(uuid)) {
+            return rivalInfo.get(uuid);
+        } else {
+            RivalInfo rival = new RivalInfo();
+            rivalInfo.put(uuid, rival);
+            return rival;
+        }
+    }
+
+    private void setEventHandler() {
+        eventHandler = new KeyboardHandler();
+        gridPane.addEventHandler(KeyEvent.KEY_PRESSED, eventHandler);
+    }
+
+    public void terminateGame() {
+        Alert alert = new Alert(Alert.AlertType.INFORMATION);
+        alert.setTitle("Game Over");
+        alert.setHeaderText("All treasures have been collected");
+        alert.setContentText("Please start a new game");
+        ObservableList<Node> nodes = alert.getDialogPane().getChildren();
+        nodes.remove(1);//remove the Label
+        Button button = (Button) ((ButtonBar) nodes.get(1)).getButtons().get(0);
+        button.setText("Click!");
+        button.setOnAction(actionEvent -> {
+            Stage root = ((Stage) stackPane.getScene().getWindow());
+            root.setScene(startGameScene);
+            root.setWidth(300);
+            root.setHeight(275);
+        });
+        alert.show();
+    }
+
+    @Override
+    public void initialize(URL location, ResourceBundle resources) {
+        rivalInfo = FXCollections.observableHashMap();
+        treasureImages = new HashMap<>();
+        mazeGrid = new GridPane();
+        playerColumn.setCellValueFactory(new PropertyValueFactory<>("name"));
+        playerColumn.setCellFactory(param -> new TableCell<RivalInfo, String>() {
+            @Override
+            protected void updateItem(String item, boolean empty) {
+                if (item != null) {
+                    setText(item);
+                }
+                setAlignment(Pos.CENTER);
+            }
+        });
+        numColumn.setCellValueFactory(new PropertyValueFactory<>("treasureCollected"));
+        numColumn.setCellFactory(param -> new TableCell<RivalInfo, Integer>() {
+            @Override
+            protected void updateItem(Integer item, boolean empty) {
+                if (item != null) {
+                    setText(item.toString());
+                }
+                setAlignment(Pos.CENTER);
+            }
+        });
+        infoTable.setPlaceholder(new Label(""));
+        infoTable.setItems(FXCollections.observableArrayList(rivalInfo.values()).sorted());
+    }
+
+
+    class KeyboardHandler implements EventHandler<KeyEvent> {
+
+        @Override
+        public void handle(KeyEvent keyEvent) {
+            String direction = null;
+            switch (keyEvent.getCode()) {
+                case UP:
+                    direction = "N";
+                    break;
+                case DOWN:
+                    direction = "S";
+                    break;
+                case LEFT:
+                    direction = "E";
+                    break;
+                case RIGHT:
+                    direction = "W";
+                    break;
+                case SPACE:
+                    direction = "NoMove";
+                    break;
+            }
+            if (direction != null) {
+//                try {
+//                    playerState.copyValueFrom(remoteServer.move(playerState.getUid(), direction));
+//                    if (!direction.equals("NoMove")) {
+//                        drawPlayer(playerState, "SELF");
+//                    }
+//                    playerState.getRivals().forEach(playerState -> drawPlayer(playerState, "RIVAL"));
+//                } catch (RemoteException e) {
+//                    e.printStackTrace();
+//                }
+            }
+        }
+    }
+}
+
+

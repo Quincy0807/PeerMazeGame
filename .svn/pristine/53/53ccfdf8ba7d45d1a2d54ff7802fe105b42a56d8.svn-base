@@ -1,0 +1,88 @@
+import java.io.Serializable;
+import java.util.*;
+import java.util.stream.Collectors;
+
+/**
+ * Created by Quincy on 15/8/19.
+ */
+public class PlayerState implements Serializable {
+    private static final long serialVersionUID = 2L;
+    private UUID uid;
+    private int mazeSize;
+    private Position currentPosition;
+    private String gameState;
+    private Map<Position, Integer> treasureInfo;
+    private ClientInterface player;
+    private int treasureCollected;
+    private transient Collection<Position> positions;
+    private LinkedList<RivalView> rivals;
+    public PlayerState() {
+        gameState = "FAILED";
+    }
+
+    public PlayerState(int mazeSize, Map<Position, Integer> treasureInfo, String gameState,
+                       ClientInterface clientInterface, Collection<PlayerState> rivals
+    ) {
+        this.uid = UUID.randomUUID();
+        this.mazeSize = mazeSize;
+        this.gameState = gameState;
+        this.treasureInfo = treasureInfo;
+        this.positions = rivals.stream().map(playerState -> playerState.currentPosition).collect(Collectors.toSet());
+        Position position =
+                new Position(this.mazeSize);
+        while (treasureInfo.containsKey(position) || positions.contains(position)) {
+            position = new Position(mazeSize);
+        }
+        this.currentPosition = position;
+        this.player = clientInterface;
+//        this.rivals = new LinkedList<RivalView>(rivals);
+    }
+
+
+    public UUID getUid() {
+        return uid;
+    }
+
+    public ClientInterface getPlayer() {
+        return player;
+    }
+
+
+    public void setRivals(List<PlayerState> rivals) {
+//        this.rivals = rivals;
+        this.positions = rivals.stream().map(playerState -> playerState.currentPosition).collect(Collectors.toSet());
+    }
+
+    public void move(String direction) {
+        if (currentPosition.moveNext(direction, mazeSize,positions)) {
+            /** read lock **/
+            if (treasureInfo.containsKey(currentPosition)) {
+                /** read unlock */
+                /** write lock **/
+                if (treasureInfo.containsKey(currentPosition)) {
+                    treasureCollected += treasureInfo.get(currentPosition);
+                    treasureInfo.remove(currentPosition);
+                    if (treasureInfo.size() == 0) {
+                        gameState = "OVER";
+                    }
+                }
+                /** write unlock **/
+            }
+            /** read unlock */
+        }
+    }
+
+
+    @Override
+    public String toString() {
+        StringBuilder stringBuilder = new StringBuilder();
+        stringBuilder.append("{");
+        for (Map.Entry temp : treasureInfo.entrySet()) {
+            stringBuilder.append(temp.getKey() + ":" + temp.getValue() + ",");
+        }
+        stringBuilder.delete(stringBuilder.lastIndexOf(","), stringBuilder.length());
+        stringBuilder.append("}");
+        return "UID: " + uid + ",Position: " + currentPosition + "," +
+                "Treasure: " + stringBuilder.toString() + ", TreasureCollected: " + treasureCollected;
+    }
+}

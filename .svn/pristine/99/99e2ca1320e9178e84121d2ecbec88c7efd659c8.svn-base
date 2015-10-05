@@ -1,0 +1,88 @@
+import java.io.Serializable;
+import java.util.*;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.stream.Collectors;
+
+public class PlayerInfo implements Serializable{
+    private static final long serialVersionUID = 2L;
+    private int playerId;
+    private Position currentPosition;
+//    private Map<Position, Integer> treasureInfo;
+    private ClientInterface player;
+    private int treasureCollected;
+//    private transient Collection<Position> positions;
+    private List<PlayerInfo> rivals;
+
+    public PlayerInfo(int playerId,int mazeSize, Map<Position, Integer> treasureInfo,
+                      ClientInterface clientInterface, Collection<PlayerInfo> rivals) {
+        this.playerId = playerId;
+        Position position =
+                new Position(mazeSize);
+        while (treasureInfo.containsKey(position) || rivals.stream().map(PlayerInfo::getCurrentPosition).collect(Collectors.toSet()).contains(position)) {
+            position = new Position(mazeSize);
+        }
+        this.currentPosition = position;
+        this.player = clientInterface;
+        this.rivals = new ArrayList<>(rivals);
+    }
+
+    public Position getCurrentPosition() {
+        return currentPosition;
+    }
+
+    public ClientInterface getPlayer() {
+        return player;
+    }
+
+    public int getPlayerId() {
+        return playerId;
+    }
+
+//    public Collection<Position> getPositions() {
+//        return positions;
+//    }
+
+    public List<PlayerInfo> getRivals() {
+        return rivals;
+    }
+
+    public static long getSerialVersionUID() {
+        return serialVersionUID;
+    }
+
+    public int getTreasureCollected() {
+        return treasureCollected;
+    }
+
+    public void setCurrentPosition(Position currentPosition) {
+        this.currentPosition = currentPosition;
+    }
+
+    public void setPlayer(ClientInterface player) {
+        this.player = player;
+    }
+
+    public void setPlayerId(int playerId) {
+        this.playerId = playerId;
+    }
+
+//    public void setPositions(Collection<Position> positions) {
+//        this.positions = positions;
+//    }
+
+    public void setRivals(List<PlayerInfo> rivals) {
+        this.rivals = rivals;
+    }
+
+    public void setTreasureCollected(int treasureCollected) {
+        this.treasureCollected = treasureCollected;
+    }
+
+//    public void setTreasureInfo(Map<Position, Integer> treasureInfo) {
+//        this.treasureInfo = treasureInfo;
+//    }
+
+//    public Map<Position, Integer> getTreasureInfo() {
+//        return treasureInfo;
+//    }
+}

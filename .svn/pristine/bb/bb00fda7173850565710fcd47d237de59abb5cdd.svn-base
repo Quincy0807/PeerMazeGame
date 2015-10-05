@@ -1,0 +1,20 @@
+import java.io.Serializable;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+
+public interface ClientInterface extends Remote, Serializable {
+    long serialVersionUID = 3L;
+
+    void setPlayerID(int playerID) throws RemoteException;
+
+    String getPlayerIDAsString() throws RemoteException;
+
+    void rivalNotification(ExchangeData exchangeData) throws RemoteException;
+
+    void startMazeGame() throws RemoteException;
+
+    void terminateMazeGame() throws RemoteException;
+
+    void setPlayerRole(String role) throws RemoteException;
+
+}

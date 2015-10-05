@@ -1,0 +1,5 @@
+public interface LogInterface {
+    default void log(String string) {
+        System.out.println(string);
+    }
+}

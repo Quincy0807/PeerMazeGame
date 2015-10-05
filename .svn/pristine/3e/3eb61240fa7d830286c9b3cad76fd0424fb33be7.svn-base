@@ -1,0 +1,39 @@
+import java.rmi.RemoteException;
+import java.util.UUID;
+
+public class ServerRole extends Super implements ServerInterface {
+    public final String primaryServer = "PrimaryServer";
+    public final String backupServer = "BackupServer";
+    public final String normalPlayer = "NormalPlayer";
+    public final String gameOver = "OVER";
+    public final String gameStart = "START";
+    public final String gameWaiting = "WAITING";
+
+    public ServerRole(int mazeSize, int treasureNumber) {
+        super(mazeSize, treasureNumber);
+        if (getGameInfo().getGameState().equals(gameOver)) {
+            getGameInfo().generateTreasures();
+        }
+    }
+
+    /**
+     * invoked when the program is ran as a primary server
+     **/
+    public PlayerInfo recordPlayerInfo(PlayerRole playerRole) {
+        PlayerInfo playerInfo = new PlayerInfo(playerRole.getPlayerID(),
+                getGameInfo().getMazeSize(), getGameInfo().getTreasureInfo(),
+                playerRole, getGameInfo().getPlayerInfos().values());
+        getGameInfo().getPlayerInfos().put(playerRole.getPlayerID(), playerInfo);
+        return playerInfo;
+    }
+
+    @Override
+    public PlayerState joinGame(String address, int port) throws RemoteException {
+        return null;
+    }
+
+    @Override
+    public PlayerState move(UUID id, String direction) throws RemoteException {
+        return null;
+    }
+}

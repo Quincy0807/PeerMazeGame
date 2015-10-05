@@ -1,0 +1,54 @@
+import javafx.stage.Stage;
+
+import java.io.IOException;
+import java.net.Inet4Address;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.rmi.AlreadyBoundException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
+import java.rmi.server.UnicastRemoteObject;
+import java.util.Arrays;
+
+public class Peer implements LogInterface {
+    private String serverAddress = "127.0.0.1";
+    private int serverPort = 9090;
+
+
+    public Peer(Stage stage, int mazeSize, int treasureNumber) throws IOException, AlreadyBoundException {
+        PlayerRole playerRole = new PlayerRole(stage);
+        if (startAsPrimaryServer()) {
+            ServerRole serverRole = new ServerRole(mazeSize, treasureNumber);
+            ServerInterface stub = (ServerInterface) UnicastRemoteObject.exportObject(serverRole, 0);
+            Registry registry = LocateRegistry.createRegistry(serverPort);
+            String lookupName = "server";
+            registry.bind(lookupName, stub);
+            playerRole.setServerRole(serverRole);
+            playerRole.bindPrimaryServerWithPlayer();
+            log("Primary Server Starts at " + serverAddress + ":" + serverPort);
+            log(playerRole + "");
+        }
+        playerRole.initializedUI();
+    }
+
+    private boolean startAsPrimaryServer() {
+        ServerSocket socket = null;
+        try {
+            String hostname = Inet4Address.getLocalHost().getHostName();
+            if (Arrays.stream(Inet4Address.getAllByName(hostname)).map(InetAddress::getHostAddress).anyMatch(host -> host.equals(serverAddress))) {
+                return false;
+            } else {
+                socket = new ServerSocket(serverPort);
+            }
+        } catch (IOException e) {
+
+            return false;
+        }
+        try {
+            socket.close();
+        } catch (IOException ignored) {
+        }
+        return true;
+    }
+
+}

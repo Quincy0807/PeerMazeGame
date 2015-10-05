@@ -1,0 +1,22 @@
+import java.rmi.RemoteException;
+import java.util.UUID;
+
+/**
+ * Created by Quincy on 15/9/3.
+ */
+public class ServerRole extends Super implements ServerInterface{
+
+    public ServerRole(int mazeSize,int treasureNumber) {
+        super(mazeSize,treasureNumber);
+    }
+
+    @Override
+    public PlayerState joinGame(String address, int port) throws RemoteException {
+        return null;
+    }
+
+    @Override
+    public PlayerState move(UUID id, String direction) throws RemoteException {
+        return null;
+    }
+}

@@ -1,0 +1,13 @@
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+
+/**
+ * Created by antony.selva71 on 9/6/2015.
+ */
+public interface BaseInterface extends Remote {
+
+    default boolean breathing()throws RemoteException {
+        return true;
+    }
+
+}

@@ -1,0 +1,67 @@
+/**
+ * Created by Quincy on 15/9/3.
+ */
+public abstract class Super {
+    /** role primary,backup,normal**/
+    private String role;
+    private String playerID;
+    private ExchangeData exchangeData;
+
+    public Super(int mazeSize,int treasureNumber) {
+        this.exchangeData = new ExchangeData(mazeSize, treasureNumber);
+    }
+
+    public GameInfo getGameInfo() {
+        return exchangeData.getGameInfo();
+    }
+
+    public PlayerState getPlayerState() {
+        return exchangeData.getPlayerState();
+    }
+    public String getPlayerID() {
+        return playerID;
+    }
+
+    public String getRole() {
+
+        return role;
+    }
+
+    public void setPlayerID(int playerID) {
+        this.playerID = "player"+playerID;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public void log(String string) {
+        System.out.println(string);
+    }
+}
+
+class ExchangeData {
+    private GameInfo gameInfo;
+    private PlayerState playerState;
+
+    public ExchangeData(int mazeSize,int treasureNumber) {
+        gameInfo = new GameInfo(mazeSize, treasureNumber);
+        playerState = new PlayerState();
+    }
+
+    public void setGameInfo(GameInfo gameInfo) {
+        this.gameInfo = gameInfo;
+    }
+
+    public void setPlayerState(PlayerState playerState) {
+        this.playerState = playerState;
+    }
+
+    public GameInfo getGameInfo() {
+        return gameInfo;
+    }
+
+    public PlayerState getPlayerState() {
+        return playerState;
+    }
+}

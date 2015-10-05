@@ -1,0 +1,71 @@
+import java.io.Serializable;
+
+public abstract class Super implements LogInterface {
+    /**
+     * role primary,backup,normal
+     **/
+    private String role;
+
+    private ExchangeData exchangeData;
+
+    public Super() {
+        exchangeData = new ExchangeData();
+    }
+    public Super(int mazeSize, int treasureNumber) {
+        this.exchangeData = new ExchangeData(mazeSize, treasureNumber);
+    }
+
+    public GameInfo getGameInfo() {
+        return exchangeData.getGameInfo();
+    }
+
+    public PlayerInfo getPlayerState() {
+        return exchangeData.getPlayerInfo();
+    }
+
+    public String getRole() {
+
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public void setPlayerInfo(PlayerInfo playerInfo) {
+        exchangeData.setPlayerInfo(playerInfo);
+    }
+}
+
+class ExchangeData implements Serializable{
+    private GameInfo gameInfo;
+    private PlayerInfo playerInfo;
+
+    public ExchangeData() {
+    }
+
+    public ExchangeData(int mazeSize, int treasureNumber) {
+        gameInfo = new GameInfo(mazeSize, treasureNumber);
+    }
+
+    public ExchangeData(GameInfo gameInfo, PlayerInfo playerInfo) {
+        this.gameInfo = gameInfo;
+        this.playerInfo = playerInfo;
+    }
+
+    public void setGameInfo(GameInfo gameInfo) {
+        this.gameInfo = gameInfo;
+    }
+
+    public void setPlayerInfo(PlayerInfo playerInfo) {
+        this.playerInfo = playerInfo;
+    }
+
+    public GameInfo getGameInfo() {
+        return gameInfo;
+    }
+
+    public PlayerInfo getPlayerInfo() {
+        return playerInfo;
+    }
+}

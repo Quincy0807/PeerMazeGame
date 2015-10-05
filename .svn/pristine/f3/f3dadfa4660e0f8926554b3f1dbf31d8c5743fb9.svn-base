@@ -1,0 +1,103 @@
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.Timer;
+import java.util.TimerTask;
+import java.util.stream.Collectors;
+
+public class ServerRole extends Super implements ServerInterface, LogInterface {
+
+    public ServerRole(int mazeSize, int treasureNumber) {
+        super(mazeSize, treasureNumber);
+    }
+
+    /**
+     * invoked when the program is ran as a primary server
+     **/
+    public PlayerInfo recordSelfAsFirstPlayer(PlayerRole playerRole) {
+        getGameInfo().reset();
+        playerRole.setPlayerID(getGameInfo().getGlobalId());
+        PlayerInfo playerInfo = new PlayerInfo(playerRole.getPlayerID(),
+                getGameInfo().getMazeSize(), getGameInfo().getTreasureInfo(),
+                playerRole, getGameInfo().getPlayerInfos().values());
+        getGameInfo().getPlayerInfos().put(playerRole.getPlayerID(), playerInfo);
+        return playerInfo;
+    }
+
+    @Override
+    public ExchangeData joinGame(ClientInterface player) throws RemoteException {
+        int currentId = getGameInfo().getGlobalId();
+        PlayerInfo playerInfo = null;
+        GameInfo gameInfo = getGameInfo();
+        ExchangeData exchangeData = null;
+        switch (gameInfo.getGameState()) {
+            case GameInfo.gameOver:
+                gameInfo.setGameState(GameInfo.gameWaiting);
+                /** make primary server player show the game**/
+                ClientInterface primaryServerPlayer = new ArrayList<>(gameInfo.getPlayerInfos().values()).get(0).getPlayer();
+                playerInfo = new PlayerInfo(currentId, gameInfo.getMazeSize(), gameInfo.getTreasureInfo(), player, gameInfo.getPlayerInfos().values());
+                player.setPlayerID(currentId);
+                player.setPlayerRole(backupServer);
+                gameInfo.getBackupServerQueue().push(player);
+                gameInfo.getPlayerInfos().put(currentId, playerInfo);
+                startTimer();
+                exchangeData = new ExchangeData(gameInfo, playerInfo);
+                primaryServerPlayer.setGameInfo(gameInfo);
+                primaryServerPlayer.showStage();
+                break;
+            case GameInfo.gameWaiting:
+                player.setPlayerID(currentId);
+                player.setPlayerRole(normalPlayer);
+                playerInfo = new PlayerInfo(currentId, gameInfo.getMazeSize(), gameInfo.getTreasureInfo(), player, gameInfo.getPlayerInfos().values());
+                gameInfo.getBackupServerQueue().push(player);
+                gameInfo.getPlayerInfos().put(currentId, playerInfo);
+                exchangeData = new ExchangeData(gameInfo, playerInfo);
+                for (PlayerInfo rivalPlayerInfo : gameInfo.getPlayerInfos().values()) {
+                    if (rivalPlayerInfo.getPlayerId() != currentId) {
+                        rivalPlayerInfo.getPlayer().rivalNotification(exchangeData);
+                    }
+                }
+                break;
+            case GameInfo.gameStart:
+                break;
+        }
+        return exchangeData;
+    }
+
+    @Override
+    public synchronized ExchangeData move(int id, String direction) throws RemoteException {
+        GameInfo gameInfo = getGameInfo();
+        PlayerInfo playerInfo = gameInfo.getPlayerInfos().get(id);
+        playerInfo.setRivals(gameInfo.getPlayerInfos().values().stream().filter(rival -> rival.getPlayerId() != id).collect(Collectors.toList()));
+        if (!direction.equals("NoMove")) {
+            playerInfo.move(direction, gameInfo);
+        }
+        if (gameInfo.getTreasureInfo().size() == 0) {
+            gameInfo.getPlayerInfos().values().stream().filter(player -> player.getPlayerId() != id).forEach(player -> {
+                try {
+                    player.getPlayer().terminateMazeGame();
+                } catch (RemoteException e) {
+                    log("player-" + player.getPlayerId() + "disconnected!");
+                }
+            });
+        }
+        return new ExchangeData(gameInfo, playerInfo);
+    }
+
+    private void startTimer() {
+        Timer timer = new Timer();
+        timer.schedule(new TimerTask() {
+            @Override
+            public void run() {
+                try {
+                    getGameInfo().setGameState(GameInfo.gameStart);
+                    for (PlayerInfo player : getGameInfo().getPlayerInfos().values()) {
+                        player.getPlayer().startMazeGame();
+                    }
+                } catch (RemoteException e) {
+                    e.printStackTrace();
+                }
+            }
+        }, 1000 * 5);
+
+    }
+}

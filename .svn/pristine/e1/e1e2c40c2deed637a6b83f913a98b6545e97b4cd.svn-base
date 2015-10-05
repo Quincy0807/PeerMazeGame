@@ -1,0 +1,12 @@
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import java.util.UUID;
+
+/**
+ * Created by Quincy on 15/8/19.
+ */
+public interface ServerInterface extends Remote {
+    ExchangeData joinGame(ClientInterface clientInterface) throws RemoteException;
+
+    ExchangeData move(int id, String direction) throws RemoteException;
+}

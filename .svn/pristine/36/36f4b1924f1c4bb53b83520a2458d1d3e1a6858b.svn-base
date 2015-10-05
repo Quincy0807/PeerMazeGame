@@ -1,0 +1,52 @@
+import java.io.IOException;
+import java.io.ObjectOutput;
+import java.io.ObjectOutputStream;
+import java.net.InetSocketAddress;
+import java.net.Socket;
+
+public class LogHelper {
+    static String[] colors = new String[]{"pink", "grey","red", "green", "gold", "brown",
+            "violet", "black"};
+
+    static void logPlayer(PlayerRole player, String str) {
+        if (player.getRole().equals(Super.backupServer)) {
+            logBackup(str);
+        } else {
+            if (player.getRole().equals(Super.primaryServer)) {
+                logPrimary(str);
+            } else {
+                logNormalPlayer(player.getPlayerID(), str);
+            }
+
+        }
+    }
+    static void logPrimary(String str) {
+        sendToSocket(str, "magenta");
+    }
+
+    static void logBackup(String str) {
+        sendToSocket(str, "blue");
+    }
+
+    static void logWarnning(String str) {
+        sendToSocket(str, "dark");
+    }
+
+    static void logNormalPlayer(int id, String str) {
+        sendToSocket(str,colors[id%colors.length]);
+    }
+
+    static void sendToSocket(String str, String color) {
+        try {
+            Socket so = new Socket();
+            so.connect(new InetSocketAddress("127.0.0.1", 8081));
+            ObjectOutput objectOutput = new ObjectOutputStream(so.getOutputStream());
+            objectOutput.writeObject(new TextInfo(color, str+"\n"));
+            objectOutput.close();
+            so.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+

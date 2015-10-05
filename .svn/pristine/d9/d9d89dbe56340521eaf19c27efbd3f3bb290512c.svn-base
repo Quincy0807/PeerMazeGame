@@ -1,0 +1,52 @@
+import javafx.stage.Stage;
+
+import java.rmi.RemoteException;
+
+/**
+ * Created by Quincy on 15/9/3.
+ */
+public class PlayerRole extends Super implements ClientInterface {
+    private ServerInterface serverRole;
+    private transient Stage stage;
+    private int playerID;
+
+    public PlayerRole(Stage stage) {
+        this.stage = stage;
+    }
+
+    public int getPlayerID() {
+        return playerID;
+    }
+
+    public String getPlayerIDAsString() {
+        return "player" + playerID;
+    }
+
+    public void setPlayerID(int playerID) {
+        this.playerID = playerID;
+    }
+
+    public void setServerRole(ServerInterface serverRole) {
+        this.serverRole = serverRole;
+    }
+
+    @Override
+    public String toString() {
+        return getPlayerIDAsString() + ": " + getRole();
+    }
+
+    @Override
+    public void rivalNotification(PlayerState rivalState) throws RemoteException {
+
+    }
+
+    @Override
+    public void startMazeGame() throws RemoteException {
+
+    }
+
+    @Override
+    public void terminateMazeGame() throws RemoteException {
+
+    }
+}

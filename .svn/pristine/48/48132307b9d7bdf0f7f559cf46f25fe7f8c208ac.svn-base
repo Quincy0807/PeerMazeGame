@@ -1,0 +1,110 @@
+import javafx.application.Platform;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Parent;
+import javafx.scene.Scene;
+import javafx.stage.Stage;
+
+import java.io.IOException;
+import java.rmi.RemoteException;
+import java.rmi.server.UnicastRemoteObject;
+import java.util.Random;
+
+public class PlayerRole extends Super implements ClientInterface {
+    private ServerInterface serverRole;
+    private StartGameController startGameController;
+    private GameController gameController;
+    private transient Stage stage;
+    private int playerID;
+
+    public PlayerRole(Stage stage) throws IOException {
+        this.stage = stage;
+        UnicastRemoteObject.exportObject(this, randomPort());
+    }
+
+    public int getPlayerID() {
+        return playerID;
+    }
+
+    @Override
+    public String getPlayerIDAsString() {
+        return "player-" + playerID;
+    }
+
+    @Override
+    public void setPlayerID(int playerID) {
+        this.playerID = playerID;
+    }
+
+    public void setServerRole(ServerInterface serverRole) {
+        this.serverRole = serverRole;
+    }
+
+    public void bindPrimaryServerWithPlayer() {
+        ServerRole server = (ServerRole) serverRole;
+        this.setPlayerID(server.getGameInfo().getGlobalId());
+        this.setRole(primaryServer);
+        this.setPlayerInfo(server.recordSelfAsFirstPlayer(this));
+    }
+
+    public void initializedUI() {
+        this.stage.setOnCloseRequest(windowEvent -> System.exit(0));
+        FXMLLoader fxmlLoader;
+        try {
+            fxmlLoader = new FXMLLoader(getClass().getResource("start_game_layout.fxml"));
+            Parent root = fxmlLoader.load();
+            this.stage.setTitle("Join A Game");
+            this.stage.setScene(new Scene(root, 300, 275));
+            this.startGameController = fxmlLoader.getController();
+            this.startGameController.setPlayer(this);
+            if (getRole() == null || !getRole().equals(primaryServer)) {
+                stage.show();
+            }
+        } catch (IOException e) {
+            log("error during start_game_layout initialization");
+        }
+    }
+
+    public void showStage() {
+        Platform.runLater(() -> {
+            try {
+                startGameController.showGameUI(serverRole, new ExchangeData(getGameInfo(), getPlayerInfo()));
+            } catch (IOException e) {
+                log("error during game_layout initialization");
+            }
+        });
+    }
+
+    private int randomPort() {
+        int max = 9999;
+        int min = 9100;
+        Random random = new Random();
+        return random.nextInt(max - min + 1) + min;
+    }
+
+    @Override
+    public String toString() {
+        return getPlayerIDAsString() + ": " + getRole();
+    }
+
+    @Override
+    public void rivalNotification(ExchangeData exchangeData) throws RemoteException {
+        setGameInfo(exchangeData.getGameInfo());
+        log("backupServer Queue updating: " + getGameInfo().backupServerQueueToString());
+        startGameController.drawRival(exchangeData);
+    }
+
+    @Override
+    public void startMazeGame() throws RemoteException {
+        startGameController.startMazeGame();
+    }
+
+    @Override
+    public void terminateMazeGame() throws RemoteException {
+        startGameController.terminateGame();
+    }
+
+    @Override
+    public void setPlayerRole(String role) throws RemoteException {
+        this.setRole(role);
+    }
+}

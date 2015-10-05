@@ -1,0 +1,9 @@
+/**
+ * Created by Quincy on 15/9/3.
+ */
+public class PlayerRole extends Super {
+    private ServerRole serverRole;
+
+    public PlayerRole() {
+    }
+}

@@ -1,0 +1,8 @@
+/**
+ * Created by Quincy on 15/9/4.
+ */
+public interface LogInterface {
+    default void log(String string) {
+        System.out.println(string);
+    }
+}

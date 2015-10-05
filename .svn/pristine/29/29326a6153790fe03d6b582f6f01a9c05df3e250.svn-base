@@ -1,0 +1,20 @@
+package com.ds.player;
+
+import com.ds.server.PlayerState;
+
+import java.io.Serializable;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+
+/**
+ * Created by Quincy on 15/8/20.
+ */
+public interface ClientInterface extends Remote, Serializable {
+    long serialVersionUID = 3L;
+
+    void rivalNotification(PlayerState rivalState) throws RemoteException;
+
+    void startMazeGame() throws RemoteException;
+
+    void terminateMazeGame() throws RemoteException;
+}

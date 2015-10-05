@@ -1,0 +1,62 @@
+import java.rmi.RemoteException;
+
+public abstract class Super {
+    public static final String primaryServer = "PrimaryServer";
+    public static final String backupServer = "BackupServer";
+    public static final String normalPlayer = "NormalPlayer";
+    /**
+     * role primary,backup,normal
+     **/
+    private String role;
+
+    private ExchangeData exchangeData;
+
+    public Super() {
+        exchangeData = new ExchangeData();
+    }
+    public Super(int mazeSize, int treasureNumber) {
+        this.exchangeData = new ExchangeData(mazeSize, treasureNumber);
+    }
+
+    public GameInfo getGameInfo() {
+        return exchangeData.getGameInfo();
+    }
+
+    public PlayerInfo getPlayerInfo() {
+        return exchangeData.getPlayerInfo();
+    }
+
+    public synchronized String getRole() {
+        return role;
+    }
+
+    public synchronized void setRole(String role) {
+        this.role = role;
+    }
+
+    public void setExchangeData(ExchangeData exchangeData) {
+        this.exchangeData = exchangeData;
+    }
+
+    public void setPlayerInfo(PlayerInfo playerInfo) {
+        exchangeData.setPlayerInfo(playerInfo);
+    }
+
+    public void setGameInfo(GameInfo gameInfo) {
+        exchangeData.setGameInfo(gameInfo);
+    }
+
+    public boolean ping(BaseInterface baseInterface)
+    {
+        try{
+            return baseInterface.breathing();
+        }
+        catch(RemoteException ex){
+            return false;
+        }
+    }
+
+
+}
+
+
